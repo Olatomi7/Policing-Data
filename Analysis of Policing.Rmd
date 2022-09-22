@@ -1,0 +1,443 @@
+---
+title: "MA304 Coursework - 21151271"
+subtitle: "Analysis of Policing data set"
+author: '21151271'
+date: '2022-04-29'
+output: html_document
+---
+<style>
+body {text-align: justify}
+</style>
+
+```{r setup, include=FALSE,results='hide'}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+#Load the libraries
+
+library(ggplot2)
+library(reshape2)
+library(RColorBrewer)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(gridExtra)
+library(hms)
+library(plotly)
+library(janitor)
+library(ggcorrplot)
+
+
+```
+
+## Introduction
+
+This report aims to provide an analysis of a policing data set from Dallas, Texas USA in 2016 made available by the Center for Policing Equity. The dataset was obtained from the Kaggle website, and has 47 variables along with 2383 observations from the Dallas division of the police force. The observations vary from incident date and time, officer gender and rate, subject gender and rate as well as use of force and other fine details. 
+
+Exploratory data analysis will be carried out to drill down and identify policing inequities, shed light on police behavior, and provide effective recommendations based on insights from the data set. The analysis will be carried out using R markdown. The goal is to unravel recurrent patterns or bias with the use of interactive plots, racial profiling, and look for factors that drive the use of force and other incident markers.
+
+
+
+## Analysis
+
+The first step is to load the libraries that would be required and load the data set into R, view and explore the data in the raw downloaded form to determine if it is clean or dirty. As expected, the data has several missing and null values, variables with two or more observations, duplicate columns and other irregularities that account for data being called dirty. To begin the process, a function called cleannames() from the jupiter package in R will be used to change column names to lowercase and change spaces into underscores. The next thing is to subset by choosing and renaming the variables to work with after a cursory look at the data. A check and substitution for NA values is also performed after which the date and time present in the data set is formatted to make for easy analysis. 
+
+
+
+
+```{r , include=FALSE, echo=FALSE,  results='hide'}
+knitr::opts_chunk$set(echo = FALSE)
+
+#Load the data set
+
+Pol_dataraw <- read.csv("Policing.csv", header = TRUE)
+
+#Clean variable names
+
+Pol_dataraw <- Pol_dataraw %>%
+  clean_names()
+
+#Remove duplicated title in the first row and rename some variables
+
+Pol_data <- Pol_dataraw [-1,] %>%
+  
+  rename(loc_details = location_full_street_address_or_intersection,
+         
+         officer_yof = officer_years_on_force,
+         
+         officer_hosp = officer_hospitalization,
+         
+         subj_arrest = subject_was_arrested,
+         
+         subj_desc = subject_description,
+         
+         force_reason = reason_for_force,
+         
+         sub_inj_type = subject_injury_type,
+         
+         off_inj_type = officer_injury_type)
+  
+#Select variables for the analysis
+
+Pol_data <- Pol_data [ , c(1:2,5:6,8:10,13:18,23,34)]
+
+#Check for NA values
+
+is.na(Pol_data)
+
+#Substitute for NA values
+
+Pol_data <- Pol_data %>%
+  mutate(across(c(1:15), na_if, ""))
+
+#Review the data and view all variable names
+
+head(Pol_data)
+dim(Pol_data)
+names(Pol_data)
+
+#Reformat date type and time format
+
+Pol_data$incident_date <- mdy(Pol_data$incident_date)
+
+Pol_data$incident_month <-format(Pol_data$incident_date,"%m")
+
+Pol_data$incident_day <- format(Pol_data$incident_date, format="%d")
+
+Pol_data$incident_time <- strptime(Pol_data$incident_time, format = "%H:%M:%S")
+
+Pol_data$incident_time <- as_hms(Pol_data$incident_time)
+
+
+
+
+```
+
+
+After cleaning the data, we will dive into visualisation which is at the center of the insights we hope to obtain. First up is the time series graph of year and month as well as a density distribution of incidents that ocurred between officers and subjects in 2016.
+
+
+
+
+```{r  , figures-side, fig.show="hold", out.width="50%", results='hide'}
+
+
+#Make a time series plot for year
+
+Polincident_year <-  Pol_data %>%
+  group_by(incident_date,incident_month,incident_day) %>%
+  summarize(count = n())
+  
+Plot <- ggplot(Polincident_year, aes(incident_date, count)) +
+  geom_line() + geom_smooth(color = "darkviolet", span = 0.3) +
+  labs(x="Months ", y= "Incident Count", title="Year vs Incident")
+
+ggplotly(Plot)
+  
+
+
+```
+
+
+```{r  , echo=FALSE}
+
+#Make a time series plot for month
+
+Polincident_month <-  Pol_data %>%
+  group_by(incident_month) %>%
+  summarize(count = n())
+
+Plot2 <- ggplot(Polincident_month, aes(incident_month, count, group = 1)) +
+  geom_line() + geom_smooth(color = "darkviolet", span = 0.3) +
+  labs(x="Months ", y= "Incident Count", title="Month vs Incident")
+
+ggplotly(Plot2)
+
+
+
+
+```
+
+
+```{r  , echo=FALSE}
+
+#Make a time series plot for time
+
+Polincident_time <-  Pol_data %>%
+  group_by(incident_time) %>%
+  summarize(count = n())
+
+Plot3 <- ggplot(Polincident_time, aes(incident_time, count, group = 1)) +
+  geom_line() + geom_smooth(color = "firebrick3", span = 0.3) +
+  labs(x="Months ", y= "Incident Count", title="Time vs Incident")
+
+ggplotly(Plot3)
+
+
+
+```
+
+
+
+```{r  , echo=FALSE}
+
+#Plot the density distribution of incidents
+
+Pol_density <- ggplot(Polincident_year, aes(count)) + 
+  geom_density(fill="pink",alpha=0.6)
+
+Pol_density <- Pol_density + ylab("Density of Incident Count") + 
+  xlab("Months") + ggtitle("Density Distribution of incidents")
+
+ggplotly(Pol_density)
+
+
+
+
+```
+
+
+From the time series graph, it is observed that the incident count progressed gradually from January to February to March attaining counts of 232, 254 and 264 respectively, and with March having the highest incident count. December had the lowest incident count of 100. A downward incident trend was observed through the course of the year and was significant from September to December. It is left to the imagination what brought about the significant reduction of incidents through the course of the year. Incident times also peaked at 01:00 and 08:30 over 40 times. Several incidents were reported above a count of 40 at 02:00, 03:30, 05:00 and 09:00. The density distribution also shows incident occurrence is rightly skewed and confirms the pattern observed in the time series of year.
+
+
+
+
+```{r  , echo=FALSE}
+
+
+#Bar plot of subject gender. Start by checking the levels
+
+levels(as.factor(Pol_data$subject_race))
+
+Pol_data$subject_race <- Pol_data$subject_race %>% discard(is.null)
+
+levels(as.factor(Pol_data$subject_race))
+
+Subj_race_bar <- ggplot(Pol_data, aes(x = factor(subject_race))) +
+  geom_bar(fill = "dodgerblue", color = "grey40", alpha = .5) + 
+  ggtitle("Bar plot of subject race")
+
+ggplotly(Subj_race_bar)
+
+
+
+
+```
+
+
+```{r  , echo=FALSE}
+
+#Bar plot of subject gender. Start by checking the levels
+#and get a table
+
+levels(as.factor(Pol_data$subject_gender))
+
+Subj_gen_bar <- ggplot(Pol_data, aes(x = factor(subject_gender))) +
+  geom_bar(fill = "magenta", color = "grey40", alpha = .5) + 
+  ggtitle("Bar plot of subject gender")
+
+ggplotly(Subj_gen_bar)
+
+
+
+```
+
+
+
+```{r  , echo=FALSE}
+
+#Violin plot of subject description
+
+levels(as.factor(Pol_data$subj_desc))
+
+Subj_desc_plot <- ggplot(Pol_data, mapping=aes(x=factor(subj_desc), y=incident_date)) + 
+  xlab("") + ylab("Incident date") +
+  geom_violin(fill="hotpink") + coord_flip() +
+  stat_summary(fun = median, geom='point') +
+  ggtitle("Violin plot of subject description")
+
+ggplotly(Subj_desc_plot)
+
+```
+
+
+
+```{r  , echo=FALSE}
+
+#Bar plot of subject injury
+
+levels(as.factor(Pol_data$subject_injury))
+
+Subj_inj_bar <- ggplot(Pol_data, aes(x = factor(subject_injury))) +
+  geom_bar(fill = "blue", color = "grey40", alpha = .5) + 
+  ggtitle("Bar plot of subject injury")
+
+ggplotly(Subj_inj_bar)
+
+
+```
+
+
+```{r  , echo=FALSE}
+
+#Bar plot of subject arrest
+
+levels(as.factor(Pol_data$subj_arrest))
+
+Subj_arr_bar <- ggplot(Pol_data, aes(x = factor(subj_arrest))) +
+  geom_bar(fill = "green", color = "grey40", alpha = .5) + 
+  ggtitle("Bar plot of subject arrested or not")
+
+ggplotly(Subj_arr_bar)
+
+
+```
+
+
+
+```{r  , echo=FALSE}
+
+
+#Bar plot of incident reason
+
+levels(as.factor(Pol_data$incident_reason))
+
+Incident_bar <- ggplot(Pol_data, aes(x = factor(incident_reason))) +
+  geom_bar(fill = "purple", color = "grey40", alpha = .5) + 
+  coord_flip() +
+  ggtitle("Bar plot of incident reason")
+
+ggplotly(Incident_bar)
+
+
+
+
+```
+
+
+
+Next is the analysis of the subjects. The bar plot of subject race shows the ethnic group that featured the most in this data set is those of black origin at a count of 1333. The next most featured ethnic identities are hispanics and whites at counts of 524 and 470 respectively.Other ethnic groups featured are minimal and the black subjects high count points towards racial profiling. The most featured gender is the male subjects at a count of 1932 while female subjects accounted for 440 counts.
+
+A violin plot of subject description details over 15 descriptions of the subjects and shows that alcohol and unknown drugs, marijuana and mentally unstable subjects feature through the year. Suspects with guns subjects have the recur at the highest peak but have no match for alcohol and drugs subjects that feature through the year.
+
+It is also observed that majority of subjects have no reports of injuries at a count of 1754 subjects while about 629 subjects report one form of injury or the other. This shows use of force is not excessive but it depends on the circumstances surrounding the incidents. However, most of the subjects were arrested with over 2048 subjects accounting for arrests while 335 subjects were not arrested in these incidents.
+
+
+Taking a look at incident reasons, arrest accounted for about 1157 subjects which could be for a number of reasons. Service call featured the most after arrest at a count of 673, while call for cover is third in line accounting for 131 incidents. It is surprising that call for cover comes third in line as it appears to be the most dangerous reason.
+
+
+
+
+```{r , echo=FALSE}
+
+
+#Bar plot of officer gender
+
+levels(as.factor(Pol_data$officer_gender))
+
+Off_gen_bar <- ggplot(Pol_data, aes(x = factor(officer_gender))) +
+  geom_bar(fill = "yellow", color = "grey40", alpha = .5) + 
+  ggtitle("Bar plot of officer gender")
+
+ggplotly(Off_gen_bar)
+
+
+
+```
+
+
+
+```{r  , echo=FALSE}
+
+#Bar plot of officer race
+
+levels(as.factor(Pol_data$officer_race))
+
+Off_race_bar <- ggplot(Pol_data, aes(x = factor(officer_race))) +
+  geom_bar(fill = "red", color = "grey40", alpha = .5) + 
+  ggtitle("Bar plot of officer race")
+
+ggplotly(Off_race_bar)
+
+
+```
+
+
+
+```{r  , echo=FALSE}
+
+#Bar plot of officer injury
+
+levels(as.factor(Pol_data$officer_injury))
+
+Off_inj_bar <- ggplot(Pol_data, aes(x = factor(officer_injury))) +
+  geom_bar(fill = "chocolate", color = "grey40", alpha = .5) + 
+  ggtitle("Bar plot of officer injury")
+
+ggplotly(Off_inj_bar)
+
+
+```
+
+
+```{r  , echo=FALSE}
+
+#Histogram of officer years in the force
+
+Pol_data$officer_yof <- as.numeric(Pol_data$officer_yof)
+
+Off_yof_hist <- ggplot(Pol_data, aes(x = officer_yof)) +
+  geom_histogram(binwidth = 1, fill="#2b8cbe", alpha=0.6) +
+  xlab("Year") + ylab("Officer count") + ggtitle("Officer years in the force")
+
+ggplotly(Off_yof_hist)
+
+
+```
+
+
+```{r  , echo=FALSE}
+
+#Division and incident count per year
+
+Poldiv_year <-  Pol_data %>%
+  group_by(incident_month,division) %>%
+  summarize(count = n())
+
+Div_plot <- ggplot(Poldiv_year, aes(x = incident_month, y = count, group = 'count'))  + 
+  geom_line( aes(color= division), size = 1.2) + 
+  labs(x="Hours in a day", y= "Incident Count") +
+  ggtitle("Division vs No of Incidents") 
+
+ggplotly(Div_plot)
+
+
+```
+
+
+It is time to review officer attributes and as is usually the case, the officer gender plot show the male officers featuring in majority of incidents at a count of 2143 of total incidents while the females only accounted for 240 incidents. This can be further investigated with data that showcases the proportion of male to female officers for better insight. A plot of the race of officers shows whites accounting for 1470 of incidents, followed by hispanics at a count of 482. Blacks are next in line accounting for 341 incidents. Whites account for about 62% of cases and confirms the racial profiling insight gleaned from the review of subject race.
+
+Next is the review of officer injury during these incidents and it is observed that 2149 officers reported no form of injury whatsoever, while about 234 officers reported injury during these incidents. Upon review of number of years in the force for the officers, the plot shows officers with 0 - 3 years of experience noted as those with the highest use of force with a count of 341 for those with 2 years, 3 years on the force accounting for 319 counts. Officers with years of force ranging from 12 - 36 years account for the lowest use of force. This attests to the fact that controlled use of force and restraint advances with experience.
+
+The last point of call is a report of the number of incidents attributable to each division of the police force in Dallas. The division with the highest number of incidents is the Central peaking at several intervals (March, May, July and October) with counts of 59, 51, 57 and 51 respectively. Alternatively, the northwest division accounts for the lowest number of incidents at intervals in July, October and December with counts of 10, 12 and 6 in those months respectively. It appears that the north west division did not have as many incidents as the central division but this could be a function of location(area or town) which is not investigated in this report. 
+
+
+
+##  Conclusion
+
+Analysis inference confirms a downward trend of crime in Dallas for the year 2016. Subjects of black origin feature the most in criminal incidents, while hispanics and whites take the second and third position respectively. Also, male subjects are more involved in criminal incidents than their female counterparts. Alcohol and unknown drugs, marijuana and mentally unstable subjects feature more frequently in criminal-related incidents through the year. Approximately 74% of subjects reported no injury during these incidents which lends credence to reduced use of force. However, 86% of subject arrests were made in these incidents. 
+
+
+
+90% of incidents involved male officers while females accounted for 20% of incidents. Analysis of the race of officers shows that officers with the highest number of incidents are predominantly white while hispanics came second in line with about 32% of the incident count of 1470 for whites.
+90% of officers reported no injury and implies there are reduced threats to them during these incidents which may also be a reason for less use of force. Officers with 0 to 3 years of experience featured in mst incidents whle those with experience of 12 years and above, featured less. The central division of the Dallas police force accounted for the highest number of incidents across the year while the north west division reported the lowest incident count across the year.
+
+
+Incident instances of racial profiling is quite evident and it can be surmised that every black subject incident is mostly handled by a white officer. Further investigation may need to be carried out to confirm.
+
+
+
+
+
+
+
