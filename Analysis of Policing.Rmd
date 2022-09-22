@@ -1,7 +1,6 @@
 ---
-title: "MA304 Coursework - 21151271"
-subtitle: "Analysis of Policing data set"
-author: '21151271'
+title: "Analysis of Policing data set"
+author: 'Tomi'
 date: '2022-04-29'
 output: html_document
 ---
@@ -40,7 +39,7 @@ Exploratory data analysis will be carried out to drill down and identify policin
 
 ## Analysis
 
-The first step is to load the libraries that would be required and load the data set into R, view and explore the data in the raw downloaded form to determine if it is clean or dirty. As expected, the data has several missing and null values, variables with two or more observations, duplicate columns and other irregularities that account for data being called dirty. To begin the process, a function called cleannames() from the jupiter package in R will be used to change column names to lowercase and change spaces into underscores. The next thing is to subset by choosing and renaming the variables to work with after a cursory look at the data. A check and substitution for NA values is also performed after which the date and time present in the data set is formatted to make for easy analysis. 
+The first step is to load the libraries that would be required and load the data set into R, view and explore the data in the raw form to determine if it is clean or dirty. As expected, the data has several missing and null values, variables with two or more observations, duplicate columns and other irregularities that account for data being called dirty. To begin the process, a function called cleannames() from the janitor package in R will be used to change column names to lowercase and change spaces into underscores. The next thing is to subset by choosing and renaming the variables to work with after a cursory look at the data. A check and substitution for NA values is also performed after which the date and time present in the data set is formatted to make for easy analysis. 
 
 
 
@@ -433,7 +432,7 @@ Analysis inference confirms a downward trend of crime in Dallas for the year 201
 90% of officers reported no injury and implies there are reduced threats to them during these incidents which may also be a reason for less use of force. Officers with 0 to 3 years of experience featured in mst incidents whle those with experience of 12 years and above, featured less. The central division of the Dallas police force accounted for the highest number of incidents across the year while the north west division reported the lowest incident count across the year.
 
 
-Incident instances of racial profiling is quite evident and it can be surmised that every black subject incident is mostly handled by a white officer. Further investigation may need to be carried out to confirm.
+Incident instances of racial profiling is quite evident, and it can be surmised that every black subject incident is mostly handled by a white officer. Further investigation may need to be carried out to confirm.
 
 
 
